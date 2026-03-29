@@ -34,10 +34,12 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
   const [query, setQuery] = useState("")
   const [baseName, setBaseName] = useState("SINAPI")
   const [activeBase, setActiveBase] = useState<ReferenciaItem[]>([])
+  const [personalItems, setPersonalItems] = useState<BudgetItem[]>([])
 
-  // Load active base on open
+  // Load active base and personal items on open
   useEffect(() => {
     if (open) {
+      // 1. Load government base
       const savedBase = localStorage.getItem("orcapro_base_ativa") || "sinapi"
       if (savedBase === "caema") {
         setActiveBase(SINFRA_MOCK)
@@ -49,11 +51,23 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
         setActiveBase(SINAPI_MOCK)
         setBaseName("SINAPI")
       }
+
+      // 2. Load personal items from "Meu Banco"
+      try {
+        const savedPersonal = localStorage.getItem("orcapro_banco_proprio")
+        if (savedPersonal) {
+          setPersonalItems(JSON.parse(savedPersonal))
+        } else {
+          setPersonalItems([])
+        }
+      } catch (e) {
+        console.error("Erro ao carregar itens pessoais na busca", e)
+      }
     }
   }, [open])
 
   // Filtra por código ou descrição (case insensitive, normalizado)
-  const filtered = query.trim().length === 0
+  const filteredGov = query.trim().length === 0
     ? activeBase
     : activeBase.filter((item) => {
         const q = query.toLowerCase()
@@ -63,31 +77,64 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
         )
       })
 
-  // Agrupa por tipo para exibição
-  const materiais = filtered.filter((i) => i.tipo === "material")
-  const maoDeObra = filtered.filter((i) => i.tipo === "mao_de_obra")
+  const filteredPersonal = query.trim().length === 0
+    ? personalItems
+    : personalItems.filter((item) => {
+        const q = query.toLowerCase()
+        return (
+          item.ref.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q)
+        )
+      })
 
-  const handleSelect = useCallback((sinapiItem: ReferenciaItem) => {
+  // Agrupa para exibição
+  const materiais = [
+    ...filteredPersonal.filter((i) => i.tipo === "material").map(i => ({
+      codigo: i.ref,
+      descricao: i.description,
+      unidade: i.unit,
+      tipo: "material",
+      preco_desonerado: i.unitPrice,
+      preco_nao_desonerado: i.unitPrice,
+      isPersonal: true
+    })),
+    ...filteredGov.filter((i) => i.tipo === "material")
+  ]
+  const maoDeObra = [
+    ...filteredPersonal.filter((i) => i.tipo === "mao_de_obra").map(i => ({
+      codigo: i.ref,
+      descricao: i.description,
+      unidade: i.unit,
+      tipo: "mao_de_obra",
+      preco_desonerado: i.unitPrice,
+      preco_nao_desonerado: i.unitPrice,
+      isPersonal: true
+    })),
+    ...filteredGov.filter((i) => i.tipo === "mao_de_obra")
+  ]
+
+  const handleSelect = useCallback((sinapiItem: any) => {
     const price = isDesonerado
       ? sinapiItem.preco_desonerado
       : sinapiItem.preco_nao_desonerado
 
     const newItem: BudgetItem = {
       id: generateId(),
-      ref: `SINAPI-${sinapiItem.codigo}`,
+      ref: sinapiItem.isPersonal ? sinapiItem.codigo : `${baseName}-${sinapiItem.codigo}`,
       description: sinapiItem.descricao,
       unit: sinapiItem.unidade,
       qty: 1,
       unitPrice: price,
       tipo: sinapiItem.tipo as ItemTipo,
-      sinapiCodigo: sinapiItem.codigo,
+      sinapiCodigo: sinapiItem.isPersonal ? undefined : sinapiItem.codigo,
       aiGenerated: false,
+      personalItem: sinapiItem.isPersonal
     }
 
     onAddItem(newItem)
     setQuery("")
     onOpenChange(false)
-  }, [isDesonerado, onAddItem, onOpenChange])
+  }, [isDesonerado, onAddItem, onOpenChange, baseName])
 
   const priceLabel = isDesonerado ? "Desonerado" : "Não Desonerado"
 
@@ -145,7 +192,7 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
               </span>
             }
           >
-            {maoDeObra.map((item) => {
+            {maoDeObra.map((item: any) => {
               const price = isDesonerado ? item.preco_desonerado : item.preco_nao_desonerado
               return (
                 <CommandItem
@@ -161,7 +208,11 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
                         {item.codigo}
                       </span>
                       <span className="text-sm font-medium text-foreground leading-tight truncate">
-                         <span className="text-[10px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded-sm mr-1.5 font-bold tracking-tight">[{baseName}]</span>
+                         {item.isPersonal ? (
+                           <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded-sm mr-1.5 font-bold tracking-tight border border-emerald-200">[MEU BANCO]</span>
+                         ) : (
+                           <span className="text-[10px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded-sm mr-1.5 font-bold tracking-tight">[{baseName}]</span>
+                         )}
                         {item.descricao}
                       </span>
                     </div>
@@ -191,7 +242,7 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
               </span>
             }
           >
-            {materiais.map((item) => {
+            {materiais.map((item: any) => {
               const price = isDesonerado ? item.preco_desonerado : item.preco_nao_desonerado
               return (
                 <CommandItem
@@ -207,7 +258,11 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
                         {item.codigo}
                       </span>
                       <span className="text-sm font-medium text-foreground leading-tight truncate">
-                        <span className="text-[10px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded-sm mr-1.5 font-bold tracking-tight">[{baseName}]</span>
+                        {item.isPersonal ? (
+                           <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded-sm mr-1.5 font-bold tracking-tight border border-emerald-200">[MEU BANCO]</span>
+                         ) : (
+                           <span className="text-[10px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded-sm mr-1.5 font-bold tracking-tight">[{baseName}]</span>
+                         )}
                         {item.descricao}
                       </span>
                     </div>
@@ -231,7 +286,7 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
       {/* Footer informativo */}
       <div className="border-t px-3 py-2 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {filtered.length} item{filtered.length !== 1 ? "s" : ""} disponível{filtered.length !== 1 ? "s" : ""}
+          {filteredGov.length + filteredPersonal.length} item{filteredGov.length + filteredPersonal.length !== 1 ? "s" : ""} disponível{filteredGov.length + filteredPersonal.length !== 1 ? "s" : ""}
         </p>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">

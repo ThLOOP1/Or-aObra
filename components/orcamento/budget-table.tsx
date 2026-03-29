@@ -37,6 +37,7 @@ export interface BudgetItem {
   tipo: ItemTipo
   sinapiCodigo?: string   // código-fonte SINAPI para reprecão automática no toggle
   aiGenerated?: boolean
+  personalItem?: boolean
 }
 
 interface Props {

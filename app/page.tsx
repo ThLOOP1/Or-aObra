@@ -12,6 +12,7 @@ import { BudgetTable, type BudgetItem } from "@/components/orcamento/budget-tabl
 import { BudgetActions } from "@/components/orcamento/budget-actions"
 import { ScreenOrcamentos } from "@/components/screens/screen-orcamentos"
 import { ScreenConfiguracoes } from "@/components/screens/screen-configuracoes"
+import { ScreenMeuBanco } from "@/components/screens/screen-meu-banco"
 import { SinapiSearchModal } from "@/components/orcamento/sinapi-search-modal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -63,6 +64,7 @@ const SCREEN_TITLES: Record<AppScreen, { title: string; subtitle: string }> = {
   "nova-obra": { title: "Nova Obra / Orçamento", subtitle: "Preencha os dados e use a IA para extrair itens automaticamente" },
   clientes: { title: "Gestão de Clientes", subtitle: "Mini CRM com histórico de orçamentos por cliente" },
   configuracoes: { title: "Configurações", subtitle: "Parâmetros do sistema e preferências do usuário" },
+  "meu-banco": { title: "Meu Banco de Preços", subtitle: "Gerencie suas cotações locais e composições próprias" },
 }
 
 export default function SmartBudgetApp() {
@@ -483,6 +485,10 @@ export default function SmartBudgetApp() {
 
           {screen === "configuracoes" && (
             <ScreenConfiguracoes />
+          )}
+
+          {screen === "meu-banco" && (
+            <ScreenMeuBanco />
           )}
         </main>
       </div>

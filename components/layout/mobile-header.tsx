@@ -10,6 +10,7 @@ import {
   X,
   ChevronRight,
   ShieldCheck,
+  Library
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { AppScreen } from "./app-sidebar"
@@ -18,6 +19,7 @@ import type { AppScreen } from "./app-sidebar"
 const navItems: { icon: React.ElementType; label: string; screen: AppScreen }[] = [
   { icon: PlusSquare, label: "Nova Obra",       screen: "nova-obra"     },
   { icon: FileText,   label: "Meus Orçamentos", screen: "orcamentos"    },
+  { icon: Library,    label: "Meu Banco",       screen: "meu-banco"     },
   { icon: Settings,   label: "Configurações",   screen: "configuracoes" },
 ]
 

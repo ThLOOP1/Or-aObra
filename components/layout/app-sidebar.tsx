@@ -7,15 +7,17 @@ import {
   HardHat,
   ChevronRight,
   ShieldCheck,
+  Library
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type AppScreen = "dashboard" | "orcamentos" | "nova-obra" | "clientes" | "configuracoes"
+export type AppScreen = "dashboard" | "orcamentos" | "nova-obra" | "clientes" | "configuracoes" | "meu-banco"
 
 // Dashboard e Clientes ocultados para a demo do Hackathon — foco no fluxo principal
 const navItems: { icon: React.ElementType; label: string; screen: AppScreen }[] = [
   { icon: PlusSquare, label: "Nova Obra",       screen: "nova-obra"     },
   { icon: FileText,   label: "Meus Orçamentos", screen: "orcamentos"    },
+  { icon: Library,    label: "Meu Banco",       screen: "meu-banco"     },
   { icon: Settings,   label: "Configurações",   screen: "configuracoes" },
 ]
 
