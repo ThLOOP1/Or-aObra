@@ -7,6 +7,7 @@ import { AppSidebar, type AppScreen } from "@/components/layout/app-sidebar"
 import { MobileHeader } from "@/components/layout/mobile-header"
 import { ProjectHeaderCard } from "@/components/orcamento/project-header-card"
 import { AiInputCard } from "@/components/ai/ai-input-card"
+import { AiCrossSellBanner } from "@/components/ai/ai-cross-sell-banner"
 import { CostSettingsCard } from "@/components/orcamento/cost-settings-card"
 import { BudgetTable, type BudgetItem } from "@/components/orcamento/budget-table"
 import { BudgetActions } from "@/components/orcamento/budget-actions"
@@ -43,15 +44,89 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// --- Mock AI items com sinapiCodigo e tipagem correta ---
-const AI_MOCK_ITEMS: BudgetItem[] = [
-  { id: "1", ref: "SINAPI-87251", description: "Demolição de piso cerâmico existente, inclusive remoção de entulho", unit: "m²", qty: 5, unitPrice: 32.5, tipo: "mao_de_obra", aiGenerated: true },
-  { id: "2", ref: "SINAPI-88309", description: "Regularização e nivelamento de piso com argamassa de cimento e areia", unit: "m²", qty: 5, unitPrice: 48, tipo: "mao_de_obra", aiGenerated: true },
-  { id: "3", ref: "SINAPI-96614", description: "Assentamento de porcelanato 60×60cm com argamassa colante AC-III", unit: "m²", qty: 5, unitPrice: 95, tipo: "mao_de_obra", aiGenerated: true },
-  { id: "4", ref: "SINAPI-91924", description: "Pintura acrílica em paredes internas – 2 demãos + selador", unit: "m²", qty: 20, unitPrice: 18.5, tipo: "mao_de_obra", aiGenerated: true },
-  { id: "5", ref: "SINAPI-89634", description: "Fornecimento e instalação de vaso sanitário com caixa acoplada", unit: "un", qty: 1, unitPrice: 620, tipo: "material", aiGenerated: true },
-  { id: "6", ref: "PROP-001", description: "Bancada de granito preto São Gabriel – espessura 2cm, borda chanfrada", unit: "m²", qty: 0.6, unitPrice: 780, tipo: "material", aiGenerated: true },
+// --- Motor Contextual de itens IA: detecta palavras-chave e serve itens alinhados ---
+type AiScenario = { keywords: string[]; items: BudgetItem[] }
+
+const AI_SCENARIOS: AiScenario[] = [
+  {
+    keywords: ["pintura", "tinta", "reboco", "massa corrida", "textura"],
+    items: [
+      { id: "s1", ref: "SINAPI-91924", description: "Preparo de superfície: lixamento e massa corrida – 2 mãos", unit: "m²", qty: 44, unitPrice: 14.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "s2", ref: "SINAPI-91914", description: "Selador acrílico em paredes internas", unit: "m²", qty: 44, unitPrice: 8.9, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "s3", ref: "SINAPI-91916", description: "Pintura acrílica premium em paredes internas – 2 demãos", unit: "m²", qty: 44, unitPrice: 18.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "s4", ref: "SINAPI-3767",  description: "Lixa em folha para massa ou madeira", unit: "un", qty: 30, unitPrice: 1.5, tipo: "material", aiGenerated: true },
+      { id: "s5", ref: "SINAPI-1382",  description: "Tinta Acrílica Branca Premium – lata 18L", unit: "un", qty: 3, unitPrice: 210, tipo: "material", aiGenerated: true },
+      { id: "s6", ref: "SINAPI-6085",  description: "Selador acrílico – galao 3.6L", unit: "un", qty: 2, unitPrice: 85, tipo: "material", aiGenerated: true },
+    ]
+  },
+  {
+    keywords: ["banheiro", "lavabo", "hidraul", "vaso sanitario", "pia", "chuveiro", "toalha"],
+    items: [
+      { id: "b1", ref: "SINAPI-87251", description: "Demolição de revestimento cerâmico existente", unit: "m²", qty: 5, unitPrice: 32.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "b2", ref: "SINAPI-96614", description: "Assentamento de porcelanato 60×60cm com argamassa colante AC-III", unit: "m²", qty: 5, unitPrice: 95, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "b3", ref: "SINAPI-89634", description: "Fornecimento e instalação de vaso sanitário com caixa acoplada", unit: "un", qty: 1, unitPrice: 620, tipo: "material", aiGenerated: true },
+      { id: "b4", ref: "SINAPI-89801", description: "Instalação de chuveiro elétrico de embutir", unit: "un", qty: 1, unitPrice: 280, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "b5", ref: "SINAPI-88309", description: "Regularização e nivelamento de piso com argamassa", unit: "m²", qty: 5, unitPrice: 48, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "b6", ref: "SINAPI-91924", description: "Pintura acrílica em paredes do banheiro – 2 demãos + selador", unit: "m²", qty: 12, unitPrice: 18.5, tipo: "mao_de_obra", aiGenerated: true },
+    ]
+  },
+  {
+    keywords: ["piso", "ceramica", "porcelanato", "revestimento", "azulejo"],
+    items: [
+      { id: "p1", ref: "SINAPI-87251", description: "Demolição de piso cerâmico existente, inclusive remoção de entulho", unit: "m²", qty: 30, unitPrice: 32.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "p2", ref: "SINAPI-88309", description: "Regularização e nivelamento de piso com argamassa", unit: "m²", qty: 30, unitPrice: 48, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "p3", ref: "SINAPI-96614", description: "Assentamento de porcelanato 60×60cm com argamassa colante AC-III", unit: "m²", qty: 30, unitPrice: 95, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "p4", ref: "ORSE-O-04",  description: "Argamassa colante AC-II para assentamento", unit: "sc", qty: 8, unitPrice: 22.5, tipo: "material", aiGenerated: true },
+      { id: "p5", ref: "ORSE-O-05",  description: "Rejunte cimentício (Cores Claras)", unit: "kg", qty: 6, unitPrice: 5.8, tipo: "material", aiGenerated: true },
+    ]
+  },
+  {
+    keywords: ["eletrica", "fiacao", "tomada", "interruptor", "quadro", "disjuntor"],
+    items: [
+      { id: "e1", ref: "SINAPI-91440", description: "Instalação de ponto de tomada 2P+T – padrão NBR", unit: "un", qty: 10, unitPrice: 85, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "e2", ref: "SINAPI-91441", description: "Instalação de ponto de iluminação com eletroduto", unit: "un", qty: 6, unitPrice: 95, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "e3", ref: "SINFRA-C-08", description: "Eletricista com Encargos Complementares", unit: "h", qty: 20, unitPrice: 22.4, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "e4", ref: "SINAPI-91880", description: "Quadro de distribuição 12 circuitos – fornecimento e instalação", unit: "un", qty: 1, unitPrice: 680, tipo: "material", aiGenerated: true },
+    ]
+  },
+  {
+    keywords: ["ap", "apartamento", "reforma geral", "reforma completa", "reforma total"],
+    items: [
+      { id: "a1", ref: "SINAPI-91924", description: "Pintura acrílica em paredes internas – 2 demãos + selador", unit: "m²", qty: 44, unitPrice: 18.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "a2", ref: "SINAPI-91914", description: "Preparo de superfície: massa corrida – 2 mãos", unit: "m²", qty: 44, unitPrice: 14.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "a3", ref: "SINAPI-87251", description: "Demolição de piso cerâmico existente (cômodos)", unit: "m²", qty: 30, unitPrice: 32.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "a4", ref: "SINAPI-96614", description: "Assentamento de porcelanato 60×60cm", unit: "m²", qty: 30, unitPrice: 95, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "a5", ref: "ORSE-O-07",   description: "Pedreiro com Encargos Complementares", unit: "h", qty: 40, unitPrice: 23.5, tipo: "mao_de_obra", aiGenerated: true },
+      { id: "a6", ref: "ORSE-O-08",   description: "Servente de Obras com Encargos Complementares", unit: "h", qty: 40, unitPrice: 17.8, tipo: "mao_de_obra", aiGenerated: true },
+    ]
+  },
 ]
+
+const AI_DEFAULT_ITEMS: BudgetItem[] = [
+  { id: "d1", ref: "SINAPI-91924", description: "Pintura acrílica em paredes internas – 2 demãos", unit: "m²", qty: 20, unitPrice: 18.5, tipo: "mao_de_obra", aiGenerated: true },
+  { id: "d2", ref: "ORSE-O-07",   description: "Pedreiro com Encargos Complementares", unit: "h", qty: 16, unitPrice: 23.5, tipo: "mao_de_obra", aiGenerated: true },
+  { id: "d3", ref: "ORSE-O-08",   description: "Servente de Obras com Encargos Complementares", unit: "h", qty: 16, unitPrice: 17.8, tipo: "mao_de_obra", aiGenerated: true },
+]
+
+function getAiItemsForContext(description: string): BudgetItem[] {
+  const lower = description.toLowerCase()
+  const matched: BudgetItem[] = []
+  const usedIds = new Set<string>()
+
+  for (const scenario of AI_SCENARIOS) {
+    const isMatch = scenario.keywords.some(kw => lower.includes(kw))
+    if (isMatch) {
+      for (const item of scenario.items) {
+        if (!usedIds.has(item.id)) {
+          matched.push(item)
+          usedIds.add(item.id)
+        }
+      }
+    }
+  }
+
+  return matched.length > 0 ? matched : AI_DEFAULT_ITEMS
+}
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9)
@@ -79,6 +154,7 @@ export default function SmartBudgetApp() {
   const [aiProcessed, setAiProcessed] = useState(false)
   const [showAiSuggestion, setShowAiSuggestion] = useState(false)
   const [aiSuggestionTerm, setAiSuggestionTerm] = useState("")
+  const [aiSuggestedItems, setAiSuggestedItems] = useState<BudgetItem[]>([])
   const [saved, setSaved] = useState(false)
   const [pdfGenerating, setPdfGenerating] = useState(false)
 
@@ -93,6 +169,14 @@ export default function SmartBudgetApp() {
         if (parsed.desonerado !== undefined) setIsDesonerado(parsed.desonerado)
       }
     } catch(e) {}
+  }, [])
+
+  // ── AI Cross-Sell Handler ──
+  const handleAcceptCrossSellSuggestions = useCallback((newItems: BudgetItem[]) => {
+    const freshItems = newItems.map(item => ({ ...item, id: generateId() }))
+    setItems(prev => [...prev, ...freshItems])
+    setSaved(false)
+    toast.success("Insumos complementares adicionados!")
   }, [])
 
   // ── Toggle de regime tributário ──
@@ -146,6 +230,7 @@ export default function SmartBudgetApp() {
     setIsProcessing(true)
     setAiProcessed(false)
     setAiSuggestionTerm(desc.length > 30 ? desc.slice(0, 30) + "..." : desc)
+    setAiSuggestedItems(getAiItemsForContext(desc))
     setTimeout(() => {
       setIsProcessing(false)
       setShowAiSuggestion(true)
@@ -153,17 +238,13 @@ export default function SmartBudgetApp() {
   }, [])
 
   const handleAcceptAiSuggestion = useCallback(() => {
+    const freshItems = aiSuggestedItems.map(item => ({ ...item, id: generateId() }))
     setShowAiSuggestion(false)
-    setProjectData({
-      projectName: "Reforma Banheiro Apto 302 – Bloco B",
-      clientName: "Maria Oliveira",
-      date: new Date().toISOString().slice(0, 10),
-    })
-    setItems(AI_MOCK_ITEMS)
+    setItems(freshItems)
     setAiProcessed(true)
     setSaved(false)
     toast.success("Itens sugeridos incorporados à tabela com sucesso!")
-  }, [])
+  }, [aiSuggestedItems])
 
   const handleEditOrcamento = useCallback((orc: any) => {
     setProjectData({
@@ -433,15 +514,15 @@ export default function SmartBudgetApp() {
                         <div className="space-y-3.5 w-full pt-1">
                           <div>
                             <p className="text-sm font-semibold text-emerald-950 leading-snug">
-                              A IA analisou seu projeto e propõe {AI_MOCK_ITEMS.length} itens da base oficial:
+                              A IA analisou seu projeto e propõe itens da base oficial:
                             </p>
                             <p className="text-xs text-emerald-700/80 mt-1 max-w-xl">
                               Trecho contextual: <span className="font-medium italic text-emerald-800">"{aiSuggestionTerm}"</span>
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {AI_MOCK_ITEMS.map((i, idx) => (
-                              <span key={i.sinapiCodigo || idx} className="px-2.5 py-1 bg-white border border-emerald-100/50 text-emerald-800 text-[10px] sm:text-xs rounded-md font-medium shadow-sm">
+                            {aiSuggestedItems.map((i, idx) => (
+                              <span key={i.ref + idx} className="px-2.5 py-1 bg-white border border-emerald-100/50 text-emerald-800 text-[10px] sm:text-xs rounded-md font-medium shadow-sm">
                                 [{i.tipo === "material" ? "Material" : "Mão de Obra"}] {i.description.slice(0, 50)}...
                               </span>
                             ))}
@@ -458,6 +539,12 @@ export default function SmartBudgetApp() {
                       </div>
                     </div>
                   )}
+
+                  {/* Componente Modular de Inteligência (Cross-Sell) */}
+                  <AiCrossSellBanner 
+                    items={items} 
+                    onAcceptSuggestions={handleAcceptCrossSellSuggestions} 
+                  />
 
                   <BudgetTable
                     items={items}
