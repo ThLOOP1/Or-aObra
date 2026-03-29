@@ -12,7 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { AppScreen } from "@/components/app-sidebar"
+import type { AppScreen } from "./app-sidebar"
 
 // Espelha exatamente a sidebar — Dashboard e Clientes ocultos para demo
 const navItems: { icon: React.ElementType; label: string; screen: AppScreen }[] = [

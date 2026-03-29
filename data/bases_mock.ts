@@ -6,8 +6,8 @@ export type { SinapiItem as ReferenciaItem }
 // ── Base Principal SINAPI ──
 export { SINAPI_MOCK }
 
-// ── Base de Saneamento: CAEMA (Maranhão) ──
-export const CAEMA_MOCK: SinapiItem[] = [
+// ── Base Principal SINFRA-MA (Infraestrutura) ──
+export const SINFRA_MOCK: SinapiItem[] = [
   {
     codigo: "C-01",
     descricao: "Tubo PVC Defofo Água 100mm",
@@ -34,30 +34,30 @@ export const CAEMA_MOCK: SinapiItem[] = [
   }
 ]
 
-// ── Base de Rodovias: SICRO (Federal) ──
-export const SICRO_MOCK: SinapiItem[] = [
+// ── Base Regional Nordeste: ORSE (Regional) ──
+export const ORSE_MOCK: SinapiItem[] = [
   {
-    codigo: "S-01",
-    descricao: "Concreto Asfáltico Usinado a Quente (CAUQ) - Faixa C",
-    unidade: "T",
-    tipo: "material",
-    preco_desonerado: 350.00,
-    preco_nao_desonerado: 350.00,
-  },
-  {
-    codigo: "S-02",
-    descricao: "Escavação mecânica de vala perfil retangular",
-    unidade: "M3",
-    tipo: "mao_de_obra",
-    preco_desonerado: 15.00,
-    preco_nao_desonerado: 18.00,
-  },
-  {
-    codigo: "S-03",
-    descricao: "Sinalização horizontal com tinta acrílica",
+    codigo: "O-01",
+    descricao: "Revestimento Cerâmico 40x40 - Piso",
     unidade: "M2",
+    tipo: "material",
+    preco_desonerado: 28.50,
+    preco_nao_desonerado: 28.50,
+  },
+  {
+    codigo: "O-02",
+    descricao: "Azulejista para revestimento cerâmico",
+    unidade: "H",
     tipo: "mao_de_obra",
-    preco_desonerado: 22.00,
-    preco_nao_desonerado: 25.50,
+    preco_desonerado: 24.00,
+    preco_nao_desonerado: 28.00,
+  },
+  {
+    codigo: "O-03",
+    descricao: "Cimento CP-II sacola de 50kg",
+    unidade: "SC",
+    tipo: "material",
+    preco_desonerado: 38.00,
+    preco_nao_desonerado: 38.00,
   }
 ]

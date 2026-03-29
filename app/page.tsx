@@ -250,7 +250,41 @@ export default function SmartBudgetApp() {
     }
   }, [items, encargos, bdi, projectData, isDesonerado])
 
+  const handleExportCsv = useCallback(() => {
+    if (items.length === 0) {
+      toast.warning("Adicione itens ao orçamento antes de exportar.")
+      return
+    }
+    const headers = ["Código", "Descrição", "Unidade", "Quantidade", "Valor Unitário", "Valor Total", "Tipo"]
+    const rows = items.map(i => {
+      // Formatação para que o Excel PT-BR entenda (vírgula como decimal)
+      const vlrUnit = i.unitPrice.toFixed(2).replace('.', ',')
+      const vlrTotal = (i.qty * i.unitPrice).toFixed(2).replace('.', ',')
+      const tipoLabel = i.tipo === "mao_de_obra" ? "Mão de Obra" : "Material"
+      // Remover os perigosos ; que poderiam quebrar o delimitador
+      const desc = i.description.replace(/;/g, ',')
+      return `${i.ref};${desc};${i.unit};${i.qty.toString().replace('.', ',')};${vlrUnit};${vlrTotal};${tipoLabel}`
+    })
+    
+    // Inserção da representação BOM indicando codificação UTF-8 pro Excel rodar liso as palavras acentuadas
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(';'), ...rows].join("\n")
+    const encodedUri = encodeURI(csvContent)
+    
+    const link = document.createElement("a")
+    link.href = encodedUri
+    link.download = `orcamento_${projectData.projectName ? projectData.projectName.replace(/\s+/g, '_') : 'obra'}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success("Orçamento exportado em CSV (Compatível com Excel)!")
+  }, [items, projectData.projectName])
+
   const handleGeneratePdf = useCallback(async () => {
+    if (items.length === 0) {
+      toast.warning("Adicione itens ao orçamento antes de gerar o PDF.")
+      return
+    }
     if (pdfGenerating) return
     setPdfGenerating(true)
     try {
@@ -434,8 +468,13 @@ export default function SmartBudgetApp() {
                     onDelete={handleDeleteItem}
                     onUpdate={handleUpdateItem}
                   />
-                  <BudgetActions onSave={handleSave} onGeneratePdf={handleGeneratePdf} saved={saved} isGeneratingPdf={pdfGenerating} />
-                </div>
+                  <BudgetActions 
+                    onSave={handleSave} 
+                    onGeneratePdf={handleGeneratePdf} 
+                    onExportCsv={handleExportCsv}
+                    saved={saved} 
+                    isGeneratingPdf={pdfGenerating} 
+                  /></div>
               </div>
             </div>
           )}

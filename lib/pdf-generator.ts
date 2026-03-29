@@ -108,7 +108,8 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   const hoje          = formatDateBR(date)
   const validade      = addDays(date, 30)
   const regime        = isDesonerado ? "Desonerado" : "Não Desonerado"
-  const baseRef       = `SINAPI Maranhão — Regime ${regime}`
+  const activeBaseStr = typeof window !== "undefined" ? localStorage.getItem("orcapro_base_ativa")?.toUpperCase() || "SINAPI" : "SINAPI"
+  const baseRef       = `${activeBaseStr} Maranhão — Regime ${regime}`
   const projectSlug   = slugify(projectName) || "tecnico"
   const filename      = `orcamento_${projectSlug}.pdf`
 
@@ -167,7 +168,7 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   // BLOCO 1 — DADOS DO PROFISSIONAL & OBRA
   // ────────────────────────────────────────────────────────────────────────────
 
-  const infoBoxH = 40
+  const infoBoxH = 48
   const halfW    = CW / 2 - 3
 
   // Caixa esquerda — Profissional
@@ -220,9 +221,12 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   doc.text("Base de Preços:", lx, ly)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(...C.black)
-  doc.text(baseRef, lx + 30, ly)
+  
+  // Aqui dividimos o texto caso seja muito longo (evitando overflow lateral)
+  const baseLines = doc.splitTextToSize(baseRef, halfW - 32)
+  doc.text(baseLines, lx + 30, ly)
 
-  ly += lineGap
+  ly += lineGap * baseLines.length
   doc.setFont("helvetica", "bold")
   doc.setTextColor(...C.darkGreen)
   doc.text("Encargos Sociais:", lx, ly)
@@ -300,15 +304,15 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   doc.setFillColor(...C.blueBg)
   doc.setDrawColor(...C.blue)
   doc.setLineWidth(0.3)
-  doc.roundedRect(legendX - 52, y - 0.5, 22, 6.5, 1.5, 1.5, "FD")
+  doc.roundedRect(legendX - 84, y - 0.5, 40, 6.5, 1.5, 1.5, "FD")
   doc.setTextColor(...C.blue)
-  doc.text("■ MAT — Material", legendX - 50, y + 4)
+  doc.text("■ MAT — Material", legendX - 81, y + 4)
 
   doc.setFillColor(...C.amberBg)
   doc.setDrawColor(...C.amber)
-  doc.roundedRect(legendX - 27, y - 0.5, 28, 6.5, 1.5, 1.5, "FD")
+  doc.roundedRect(legendX - 42, y - 0.5, 42, 6.5, 1.5, 1.5, "FD")
   doc.setTextColor(...C.amber)
-  doc.text("■  MO — Mão de Obra", legendX - 25, y + 4)
+  doc.text("■ MO — Mão de Obra", legendX - 39, y + 4)
 
   y += 10
 
@@ -520,7 +524,7 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   // BLOCO 5 — OBSERVAÇÕES + ASSINATURA
   // ────────────────────────────────────────────────────────────────────────────
 
-  if (y > PH - 65) {
+  if (y > PH - 85) {
     doc.addPage()
     y = 20
   }
@@ -563,12 +567,14 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8.5)
   doc.setTextColor(...C.darkGreen)
-  doc.text("Eng. Carlos Silva", sigCenterX, sigLineY + 5, { align: "center" })
+  // Utiliza os dados dinâmicos do perfil!
+  doc.text(profNome, sigCenterX, sigLineY + 5, { align: "center" })
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7.5)
   doc.setTextColor(...C.gray)
-  doc.text("CREA: 12345/MA-D — Engenheiro Civil", sigCenterX, sigLineY + 10, { align: "center" })
+  const creaRodape = prof?.crea ? `CREA: ${prof.crea}` : "CREA: 12345/MA-D"
+  doc.text(`${creaRodape} — Responsável Técnico`, sigCenterX, sigLineY + 10, { align: "center" })
   doc.text(`Data: ${hoje}`, sigCenterX, sigLineY + 15, { align: "center" })
 
   // Rodapé final da última página
@@ -577,7 +583,7 @@ export async function generateBudgetPdf(params: PdfParams): Promise<void> {
   doc.setTextColor(...C.grayLight)
   doc.text(
     "Documento gerado pelo SmartBudget CREA-MA — Sistema de Orçamento Técnico de Engenharia",
-    PW / 2, PH - 7, { align: "center" }
+    PW / 2, PH - 12, { align: "center" }
   )
 
   // ── Salva / faz download ─────────────────────────────────────────────────────

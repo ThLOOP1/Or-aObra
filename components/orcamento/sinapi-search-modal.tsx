@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
 import { Package, Wrench } from "lucide-react"
-import { SINAPI_MOCK, CAEMA_MOCK, SICRO_MOCK, type ReferenciaItem } from "@/data/bases_mock"
+import { SINAPI_MOCK, SINFRA_MOCK, ORSE_MOCK, type ReferenciaItem } from "@/data/bases_mock"
 import type { BudgetItem, ItemTipo } from "@/components/orcamento/budget-table"
 import { cn } from "@/lib/utils"
 
@@ -40,11 +40,11 @@ export function SinapiSearchModal({ open, onOpenChange, isDesonerado, onAddItem 
     if (open) {
       const savedBase = localStorage.getItem("orcapro_base_ativa") || "sinapi"
       if (savedBase === "caema") {
-        setActiveBase(CAEMA_MOCK)
-        setBaseName("CAEMA")
+        setActiveBase(SINFRA_MOCK)
+        setBaseName("SINFRA-MA")
       } else if (savedBase === "sicro") {
-        setActiveBase(SICRO_MOCK)
-        setBaseName("SICRO")
+        setActiveBase(ORSE_MOCK)
+        setBaseName("ORSE")
       } else {
         setActiveBase(SINAPI_MOCK)
         setBaseName("SINAPI")

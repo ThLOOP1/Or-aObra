@@ -13,13 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { MarketCompareModal } from "@/components/orcamento/market-compare-modal"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Trash2, Pencil, Plus, Check, X, Upload, Package, Wrench, Info, Search as SearchIcon } from "lucide-react"
+import { Trash2, Pencil, Plus, Check, X, Upload, Package, Wrench, Info, Search as SearchIcon, Scale } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type ItemTipo = "material" | "mao_de_obra"
@@ -193,6 +196,9 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
   const countMo = items.filter((i) => i.tipo === "mao_de_obra").length
 
   const [baseAtivaLbl, setBaseAtivaLbl] = useState("SINAPI")
+  const [showAbc, setShowAbc] = useState(false)
+  const [marketModalOpen, setMarketModalOpen] = useState(false)
+  const [marketItem, setMarketItem] = useState<BudgetItem | null>(null)
   
   useEffect(() => {
     const savedBase = localStorage.getItem("orcapro_base_ativa") || "sinapi"
@@ -201,26 +207,44 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
     else setBaseAtivaLbl("SINAPI")
   }, [])
 
+  const totalProgBar = materiaisRaw + moComEncargos
+  const percMat = totalProgBar ? Math.round((materiaisRaw / totalProgBar) * 100) : 0
+  const percMo = totalProgBar ? Math.round((moComEncargos / totalProgBar) * 100) : 0
+
+  let displayItems = [...items]
+  if (showAbc) {
+    displayItems.sort((a, b) => lineCost(b, encargos) - lineCost(a, encargos))
+  }
+  const abcItemsIds = showAbc ? displayItems.slice(0, 3).map(i => i.id) : []
+
   return (
     <Card className="shadow-sm flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-base font-semibold">Itens Orçados</CardTitle>
-            {items.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200 gap-1">
-                  <Package className="w-2.5 h-2.5" />
-                  {countMat} Mat
-                </Badge>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200 gap-1">
-                  <Wrench className="w-2.5 h-2.5" />
-                  {countMo} MO
-                </Badge>
-              </div>
-            )}
+      <CardHeader className="pb-4 border-b border-border/50">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-base font-semibold">Itens Orçados</CardTitle>
+              {items.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200 gap-1">
+                    <Package className="w-2.5 h-2.5" />
+                    {countMat} Mat
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200 gap-1">
+                    <Wrench className="w-2.5 h-2.5" />
+                    {countMo} MO
+                  </Badge>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 mr-2 border-r pr-4">
+              <Switch id="abc-mode" checked={showAbc} onCheckedChange={setShowAbc} />
+              <Label htmlFor="abc-mode" className="text-xs font-bold cursor-pointer text-amber-700">
+                Curva ABC
+              </Label>
+            </div>
             <Button size="sm" className="gap-1.5 text-xs h-8 bg-primary/90 hover:bg-primary" onClick={onSearch}>
               <SearchIcon className="w-3.5 h-3.5" />
               Buscar ({baseAtivaLbl})
@@ -235,6 +259,24 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
             </Button>
           </div>
         </div>
+
+        {/* Dashboard Rápido Mão de Obra vs Material */}
+        {items.length > 0 && (
+          <div className="pt-2">
+            <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-muted">
+              <div style={{ width: `${percMat}%` }} className="bg-blue-500 transition-all duration-500" />
+              <div style={{ width: `${percMo}%` }} className="bg-amber-500 transition-all duration-500" />
+            </div>
+            <div className="flex justify-between items-center mt-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span> {percMat}% Materiais
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span> {percMo}% Mão de Obra
+              </div>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
@@ -259,10 +301,15 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
                   </TableCell>
                 </TableRow>
               )}
-              {items.map((item, idx) => {
+              {displayItems.map((item, idx) => {
                 const totalLinha = lineCost(item, encargos)
+                const isCurvaA = abcItemsIds.includes(item.id)
                 return (
-                  <TableRow key={item.id} className={cn(idx % 2 === 0 ? "bg-background" : "bg-muted/20", "hover:bg-accent/30")}>
+                  <TableRow key={item.id} className={cn(
+                    idx % 2 === 0 ? "bg-background" : "bg-muted/10", 
+                    "hover:bg-accent/30 transition-colors",
+                    isCurvaA && "bg-amber-50/60 hover:bg-amber-100/60 border-l-[3px] border-l-amber-400"
+                  )}>
                     <TableCell className="py-2 align-middle">
                       <div className="flex items-center gap-1.5">
                         <EditableCell
@@ -273,6 +320,11 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
                         {item.aiGenerated && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary/40 text-primary bg-primary/5 h-4 leading-none shrink-0">
                             IA
+                          </Badge>
+                        )}
+                        {isCurvaA && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 bg-amber-100 text-amber-800 h-4 leading-none shrink-0 whitespace-nowrap">
+                            Curva A
                           </Badge>
                         )}
                       </div>
@@ -337,13 +389,35 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
                       </TooltipProvider>
                     </TableCell>
                     <TableCell className="py-2 align-middle text-center">
-                      <button
-                        onClick={() => onDelete(item.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                        aria-label={`Remover ${item.description}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-3">
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                aria-label="Comparador de Mercado IA"
+                                onClick={() => {
+                                  setMarketItem(item)
+                                  setMarketModalOpen(true)
+                                }}
+                                className="text-muted-foreground hover:text-indigo-600 transition-colors"
+                              >
+                                <Scale className="w-3.5 h-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Comparador de Mercado IA</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        <button
+                          onClick={() => onDelete(item.id)}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          aria-label={`Remover ${item.description}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -438,6 +512,12 @@ export function BudgetTable({ items, bdi, encargos, isDesonerado, onSearch, onAd
           </div>
         </div>
       </CardContent>
+
+      <MarketCompareModal 
+        open={marketModalOpen} 
+        onOpenChange={setMarketModalOpen} 
+        item={marketItem} 
+      />
     </Card>
   )
 }
