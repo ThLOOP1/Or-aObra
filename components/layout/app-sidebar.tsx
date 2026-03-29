@@ -35,7 +35,7 @@ export function AppSidebar({ activeScreen, onNavigate }: Props) {
           <HardHat className="w-5 h-5 text-primary-foreground" />
         </div>
         <div className="leading-tight">
-          <p className="text-sm font-bold text-sidebar-foreground tracking-tight">SmartBudget</p>
+          <p className="text-sm font-bold text-sidebar-foreground tracking-tight">Orça Obras</p>
           <p className="text-xs text-primary font-semibold tracking-widest uppercase">CREA-MA</p>
         </div>
       </div>
