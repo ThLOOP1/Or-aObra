@@ -155,6 +155,7 @@ export default function SmartBudgetApp() {
   const [showAiSuggestion, setShowAiSuggestion] = useState(false)
   const [aiSuggestionTerm, setAiSuggestionTerm] = useState("")
   const [aiSuggestedItems, setAiSuggestedItems] = useState<BudgetItem[]>([])
+  const [aiSelectedItemIds, setAiSelectedItemIds] = useState<Set<string>>(new Set())
   const [saved, setSaved] = useState(false)
   const [pdfGenerating, setPdfGenerating] = useState(false)
 
@@ -230,21 +231,38 @@ export default function SmartBudgetApp() {
     setIsProcessing(true)
     setAiProcessed(false)
     setAiSuggestionTerm(desc.length > 30 ? desc.slice(0, 30) + "..." : desc)
-    setAiSuggestedItems(getAiItemsForContext(desc))
+    const suggested = getAiItemsForContext(desc)
+    setAiSuggestedItems(suggested)
+    // Por padrão, todos os itens vêm pré-selecionados
+    setAiSelectedItemIds(new Set(suggested.map(i => i.id)))
     setTimeout(() => {
       setIsProcessing(false)
       setShowAiSuggestion(true)
     }, 2000)
   }, [])
 
+  const toggleAiItem = useCallback((id: string) => {
+    setAiSelectedItemIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
   const handleAcceptAiSuggestion = useCallback(() => {
-    const freshItems = aiSuggestedItems.map(item => ({ ...item, id: generateId() }))
+    const selected = aiSuggestedItems.filter(i => aiSelectedItemIds.has(i.id))
+    if (selected.length === 0) {
+      toast.error("Selecione pelo menos um item antes de adicionar.")
+      return
+    }
+    const freshItems = selected.map(item => ({ ...item, id: generateId() }))
     setShowAiSuggestion(false)
     setItems(freshItems)
     setAiProcessed(true)
     setSaved(false)
-    toast.success("Itens sugeridos incorporados à tabela com sucesso!")
-  }, [aiSuggestedItems])
+    toast.success(`${freshItems.length} item(ns) adicionado(s) ao orçamento!`)
+  }, [aiSuggestedItems, aiSelectedItemIds])
 
   const handleEditOrcamento = useCallback((orc: any) => {
     setProjectData({
@@ -511,29 +529,75 @@ export default function SmartBudgetApp() {
                         <div className="bg-emerald-100 p-2.5 rounded-full text-emerald-600 shrink-0">
                           <Sparkles className="w-5 h-5" />
                         </div>
-                        <div className="space-y-3.5 w-full pt-1">
+                        <div className="space-y-3 w-full pt-1">
+                          {/* Cabeçalho */}
                           <div>
                             <p className="text-sm font-semibold text-emerald-950 leading-snug">
-                              A IA analisou seu projeto e propõe itens da base oficial:
+                              A IA analisou seu projeto e propõe {aiSuggestedItems.length} itens da base oficial:
                             </p>
-                            <p className="text-xs text-emerald-700/80 mt-1 max-w-xl">
+                            <p className="text-xs text-emerald-700/80 mt-0.5">
                               Trecho contextual: <span className="font-medium italic text-emerald-800">"{aiSuggestionTerm}"</span>
                             </p>
                           </div>
+
+                          {/* Instrução de uso */}
+                          <p className="text-[11px] text-emerald-700/70 flex items-center gap-1">
+                            <span>👆</span>
+                            <span>Clique nos itens para remover o que não for necessário.</span>
+                          </p>
+
+                          {/* Itens como toggles */}
                           <div className="flex flex-wrap gap-2">
-                            {aiSuggestedItems.map((i, idx) => (
-                              <span key={i.ref + idx} className="px-2.5 py-1 bg-white border border-emerald-100/50 text-emerald-800 text-[10px] sm:text-xs rounded-md font-medium shadow-sm">
-                                [{i.tipo === "material" ? "Material" : "Mão de Obra"}] {i.description.slice(0, 50)}...
-                              </span>
-                            ))}
+                            {aiSuggestedItems.map((i) => {
+                              const isSelected = aiSelectedItemIds.has(i.id)
+                              return (
+                                <button
+                                  key={i.id}
+                                  type="button"
+                                  onClick={() => toggleAiItem(i.id)}
+                                  className={[
+                                    "px-2.5 py-1.5 text-[10px] sm:text-xs rounded-lg font-medium border transition-all duration-150 flex items-center gap-1.5 select-none",
+                                    isSelected
+                                      ? "bg-emerald-600 border-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                                      : "bg-white/60 border-gray-200 text-gray-400 line-through opacity-60 hover:opacity-80"
+                                  ].join(" ")}
+                                >
+                                  {isSelected ? (
+                                    <span className="text-emerald-200 text-[9px]">✓</span>
+                                  ) : (
+                                    <span className="text-gray-400 text-[9px]">✕</span>
+                                  )}
+                                  <span className="font-mono opacity-80 text-[9px]">{i.ref}</span>
+                                  {i.description.slice(0, 38)}{i.description.length > 38 ? "..." : ""}
+                                </button>
+                              )
+                            })}
                           </div>
-                          <div className="flex items-center gap-3 pt-2">
-                            <Button size="sm" onClick={handleAcceptAiSuggestion} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-8 rounded-lg">
-                              Aceitar e Adicionar à Tabela
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setShowAiSuggestion(false)} className="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100/50 h-8 rounded-lg">
-                              Descartar
-                            </Button>
+
+                          {/* Contador + Ações */}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
+                            <div className="flex items-center gap-3">
+                              <Button
+                                size="sm"
+                                onClick={handleAcceptAiSuggestion}
+                                disabled={aiSelectedItemIds.size === 0}
+                                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white shadow-sm h-8 rounded-lg gap-1.5"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Adicionar {aiSelectedItemIds.size > 0 ? `${aiSelectedItemIds.size} item(ns)` : "selecionados"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setShowAiSuggestion(false)}
+                                className="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100/50 h-8 rounded-lg"
+                              >
+                                Descartar
+                              </Button>
+                            </div>
+                            <span className="text-[11px] text-emerald-700/60 ml-auto">
+                              {aiSelectedItemIds.size} de {aiSuggestedItems.length} selecionados
+                            </span>
                           </div>
                         </div>
                       </div>

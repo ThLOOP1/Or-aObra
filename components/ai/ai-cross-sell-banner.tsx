@@ -5,12 +5,9 @@ import { AlertCircle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BudgetItem } from "@/components/orcamento/budget-table"
 
-// Configuração central do Motor de Correlação
 type CrossSellRule = {
   id: string
-  // Palavras que DEVEM estar na tabela para ativar a regra
   triggerKeywords: string[]
-  // Palavras que NÃO DEVEM estar na tabela (são os "esquecidos")
   missingKeywords: string[]
   message: string
   suggestions: BudgetItem[]
@@ -18,11 +15,8 @@ type CrossSellRule = {
 
 /**
  * Base de Conhecimento: Correlações de insumos em construção civil
- * Princípio: "Se o engenheiro adicionou X mas não tem Y, provavelmente esqueceu Y"
- * Regras ordenadas por prioridade de impacto financeiro
  */
 const CROSS_SELL_RULES: CrossSellRule[] = [
-
   // ─── CONCRETO & ESTRUTURA ───────────────────────────────
   {
     id: "rule_cimento_areia",
@@ -52,7 +46,6 @@ const CROSS_SELL_RULES: CrossSellRule[] = [
       { id: "cs_aco", ref: "SINFRA-C-05", description: "Aço CA-50 10mm (Vergalhão) - fornecimento e corte", unit: "kg", qty: 80, unitPrice: 8.5, tipo: "material", aiGenerated: true },
     ]
   },
-
   // ─── ALVENARIA ──────────────────────────────────────────
   {
     id: "rule_alvenaria_cimento",
@@ -74,7 +67,6 @@ const CROSS_SELL_RULES: CrossSellRule[] = [
       { id: "cs_servente", ref: "ORSE-O-08", description: "Servente de Obras com Encargos Complementares", unit: "h", qty: 40, unitPrice: 17.8, tipo: "mao_de_obra", aiGenerated: true },
     ]
   },
-
   // ─── REVESTIMENTOS & PISOS ──────────────────────────────
   {
     id: "rule_revestimento_massa",
@@ -96,7 +88,6 @@ const CROSS_SELL_RULES: CrossSellRule[] = [
       { id: "cs_rejunte", ref: "ORSE-O-05", description: "Rejunte cimentício colorido", unit: "kg", qty: 5, unitPrice: 5.8, tipo: "material", aiGenerated: true },
     ]
   },
-
   // ─── PINTURA ─────────────────────────────────────────────
   {
     id: "rule_pintura_preparo",
@@ -117,7 +108,6 @@ const CROSS_SELL_RULES: CrossSellRule[] = [
       { id: "cs_lixa", ref: "SINAPI-3767", description: "Lixa em folha para massa ou madeira - n°100", unit: "un", qty: 30, unitPrice: 1.5, tipo: "material", aiGenerated: true },
     ]
   },
-
   // ─── INSTALAÇÕES ─────────────────────────────────────────
   {
     id: "rule_hidraulica_ferragem",
@@ -139,8 +129,7 @@ const CROSS_SELL_RULES: CrossSellRule[] = [
       { id: "cs_eletricista", ref: "SINFRA-C-08", description: "Eletricista com Encargos Complementares", unit: "h", qty: 16, unitPrice: 22.4, tipo: "mao_de_obra", aiGenerated: true },
     ]
   },
-
-  // ─── DEMOLIÇÃO & LIMPEZA ─────────────────────────────────
+  // ─── DEMOLIÇÃO ───────────────────────────────────────────
   {
     id: "rule_demolicao_entulho",
     triggerKeywords: ["demolição", "quebra", "remoção de piso", "retirada"],
@@ -150,7 +139,6 @@ const CROSS_SELL_RULES: CrossSellRule[] = [
       { id: "cs_entulho", ref: "SINAPI-87251", description: "Remoção e transporte de entulho - até 1km", unit: "m³", qty: 3, unitPrice: 42.0, tipo: "mao_de_obra", aiGenerated: true },
     ]
   },
-
   // ─── COBERTURA ────────────────────────────────────────────
   {
     id: "rule_telha_cumeeira",
@@ -172,33 +160,46 @@ interface Props {
 export function AiCrossSellBanner({ items, onAcceptSuggestions }: Props) {
   const [activeRule, setActiveRule] = useState<CrossSellRule | null>(null)
   const [dismissedRules, setDismissedRules] = useState<string[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Engine: Observa a tabela buscando combinações lógicas para sugerir faltantes
   useEffect(() => {
     const matchedRule = CROSS_SELL_RULES.find(rule => {
       if (dismissedRules.includes(rule.id)) return false
 
-      const hasTrigger = items.some(i => {
-        const desc = i.description.toLowerCase()
-        return rule.triggerKeywords.some(kw => desc.includes(kw))
-      })
-
-      // Verifica se nenhum item existente cobre a lacuna (oposto: se NÃO tem a palavra)
-      const lacunaPreenchida = items.some(i => {
-        const desc = i.description.toLowerCase()
-        return rule.missingKeywords.some(kw => desc.includes(kw))
-      })
-
+      const hasTrigger = items.some(i =>
+        rule.triggerKeywords.some(kw => i.description.toLowerCase().includes(kw))
+      )
+      const lacunaPreenchida = items.some(i =>
+        rule.missingKeywords.some(kw => i.description.toLowerCase().includes(kw))
+      )
       return hasTrigger && !lacunaPreenchida
     })
 
-    setActiveRule(matchedRule || null)
+    if (matchedRule) {
+      setActiveRule(matchedRule)
+      // Pré-seleciona todos os itens da nova regra
+      setSelectedIds(new Set(matchedRule.suggestions.map(s => s.id)))
+    } else {
+      setActiveRule(null)
+    }
   }, [items, dismissedRules])
 
   if (!activeRule) return null
 
+  const toggleItem = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   const handleAccept = () => {
-    onAcceptSuggestions(activeRule.suggestions)
+    const selected = activeRule.suggestions.filter(s => selectedIds.has(s.id))
+    if (selected.length === 0) return
+    onAcceptSuggestions(selected)
     setDismissedRules(prev => [...prev, activeRule.id])
     setActiveRule(null)
   }
@@ -214,7 +215,8 @@ export function AiCrossSellBanner({ items, onAcceptSuggestions }: Props) {
         <div className="bg-amber-100 p-2.5 rounded-full text-amber-600 shrink-0">
           <AlertCircle className="w-5 h-5" />
         </div>
-        <div className="space-y-3.5 w-full pt-1">
+        <div className="space-y-3 w-full pt-1">
+          {/* Cabeçalho */}
           <div>
             <p className="text-sm font-semibold text-amber-950 leading-snug flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -224,26 +226,68 @@ export function AiCrossSellBanner({ items, onAcceptSuggestions }: Props) {
               {activeRule.message}
             </p>
           </div>
+
+          {/* Instrução discreta */}
+          <p className="text-[11px] text-amber-700/70 flex items-center gap-1">
+            <span>👆</span>
+            <span>Clique nos itens para remover o que não for necessário.</span>
+          </p>
+
+          {/* Itens como toggles */}
           <div className="flex flex-wrap gap-2">
-            {activeRule.suggestions.map((i) => (
-              <span key={i.id} className="px-2.5 py-1 bg-white border border-amber-100/60 text-amber-800 text-[10px] sm:text-xs rounded-md font-medium shadow-sm flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
-                <span className="font-mono text-amber-500 text-[9px]">{i.ref}</span>
-                {i.description.slice(0, 38)}...
-                <span className="text-amber-400 font-medium">
-                  {i.unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/{i.unit}
-                </span>
-              </span>
-            ))}
+            {activeRule.suggestions.map((s) => {
+              const isSelected = selectedIds.has(s.id)
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleItem(s.id)}
+                  className={[
+                    "px-2.5 py-1.5 text-[10px] sm:text-xs rounded-lg font-medium border transition-all duration-150 flex items-center gap-1.5 select-none",
+                    isSelected
+                      ? "bg-amber-500 border-amber-500 text-white shadow-sm hover:bg-amber-600"
+                      : "bg-white/60 border-gray-200 text-gray-400 line-through opacity-60 hover:opacity-80"
+                  ].join(" ")}
+                >
+                  {isSelected ? (
+                    <span className="text-amber-100 text-[9px]">✓</span>
+                  ) : (
+                    <span className="text-gray-400 text-[9px]">✕</span>
+                  )}
+                  <span className="font-mono opacity-80 text-[9px]">{s.ref}</span>
+                  {s.description.slice(0, 38)}{s.description.length > 38 ? "..." : ""}
+                  <span className="text-[9px] opacity-75 font-semibold ml-0.5">
+                    {s.unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/{s.unit}
+                  </span>
+                </button>
+              )
+            })}
           </div>
-          <div className="flex items-center gap-3 pt-1">
-            <Button size="sm" onClick={handleAccept} className="bg-amber-500 hover:bg-amber-600 text-white shadow-sm h-8 rounded-lg gap-1.5">
-              <Sparkles className="w-3 h-3" />
-              Adicionar ao Orçamento
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDismiss} className="text-amber-800 hover:text-amber-950 hover:bg-amber-100/50 h-8 rounded-lg">
-              Ignorar
-            </Button>
+
+          {/* Contador + Ações */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                onClick={handleAccept}
+                disabled={selectedIds.size === 0}
+                className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white shadow-sm h-8 rounded-lg gap-1.5"
+              >
+                <Sparkles className="w-3 h-3" />
+                Adicionar {selectedIds.size > 0 ? `${selectedIds.size} item(ns)` : "selecionados"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDismiss}
+                className="text-amber-800 hover:text-amber-950 hover:bg-amber-100/50 h-8 rounded-lg"
+              >
+                Ignorar
+              </Button>
+            </div>
+            <span className="text-[11px] text-amber-700/60 ml-auto">
+              {selectedIds.size} de {activeRule.suggestions.length} selecionados
+            </span>
           </div>
         </div>
       </div>
