@@ -13,6 +13,7 @@ interface Props {
 
 export function AiInputCard({ onProcess, isProcessing }: Props) {
   const [description, setDescription] = useState("")
+  const [isFocused, setIsFocused] = useState(false)
 
   return (
     <Card className="shadow-sm">
@@ -36,10 +37,14 @@ export function AiInputCard({ onProcess, isProcessing }: Props) {
           </label>
           <Textarea
             id="ai-description"
-            className="min-h-[160px] resize-none text-sm leading-relaxed"
-            placeholder="Ex: Preciso reformar um banheiro de 5m². Trocar piso cerâmico, pintura das paredes, instalar novo vaso sanitário e bancada de granito. A parede tem cerca de 20m² de área. Preferência por porcelanato 60x60..."
+            className={`resize-none text-sm leading-relaxed transition-all duration-300 ease-in-out ${
+              isFocused || description.trim().length > 0 ? "min-h-[240px]" : "min-h-[80px]"
+            }`}
+            placeholder="Ex: Preciso reformar um banheiro de 5m². Trocar piso..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
           />
         </div>
         <Button
@@ -50,7 +55,7 @@ export function AiInputCard({ onProcess, isProcessing }: Props) {
           {isProcessing ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Processando com IA...
+              Analisando projeto...
             </>
           ) : (
             <>

@@ -1,24 +1,22 @@
 "use client"
 
 import {
-  LayoutDashboard,
   FileText,
   PlusSquare,
-  Users,
   Settings,
   HardHat,
   ChevronRight,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type AppScreen = "dashboard" | "orcamentos" | "nova-obra" | "clientes" | "configuracoes"
 
+// Dashboard e Clientes ocultados para a demo do Hackathon — foco no fluxo principal
 const navItems: { icon: React.ElementType; label: string; screen: AppScreen }[] = [
-  { icon: LayoutDashboard, label: "Dashboard", screen: "dashboard" },
-  { icon: FileText, label: "Meus Orçamentos", screen: "orcamentos" },
-  { icon: PlusSquare, label: "Nova Obra", screen: "nova-obra" },
-  { icon: Users, label: "Clientes", screen: "clientes" },
-  { icon: Settings, label: "Configurações", screen: "configuracoes" },
+  { icon: PlusSquare, label: "Nova Obra",       screen: "nova-obra"     },
+  { icon: FileText,   label: "Meus Orçamentos", screen: "orcamentos"    },
+  { icon: Settings,   label: "Configurações",   screen: "configuracoes" },
 ]
 
 interface Props {
@@ -44,11 +42,11 @@ export function AppSidebar({ activeScreen, onNavigate }: Props) {
       <div className="px-4 py-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-sidebar-accent">
           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-primary">JM</span>
+            <span className="text-xs font-bold text-primary">CS</span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">João Mendes</p>
-            <p className="text-xs text-muted-foreground truncate">Eng. Civil · CREA 12345-MA</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">Eng. Carlos Silva</p>
+            <p className="text-xs text-muted-foreground truncate">Eng. Civil · CREA 12345/MA-D</p>
           </div>
         </div>
       </div>
@@ -80,8 +78,15 @@ export function AppSidebar({ activeScreen, onNavigate }: Props) {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-4 border-t border-sidebar-border">
+      {/* Footer — LGPD obrigatório */}
+      <div className="px-4 py-4 border-t border-sidebar-border space-y-2">
+        <div className="flex items-start gap-1.5">
+          <ShieldCheck className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Ambiente seguro. Dados processados em conformidade com a{" "}
+            <span className="font-semibold text-foreground/70">LGPD — Lei 13.709/2018</span>.
+          </p>
+        </div>
         <p className="text-xs text-muted-foreground text-center">Hackathon CREA-MA · 2025</p>
       </div>
     </aside>
